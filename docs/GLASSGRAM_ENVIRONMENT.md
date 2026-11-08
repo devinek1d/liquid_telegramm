@@ -55,3 +55,15 @@ python -c "import sys,platform; print(sys.executable); print(platform.python_ver
 - No build was attempted because the required compiler/SDK/CMake toolchain is missing and the expected Python minor version is not present.
 - Do not start visual implementation before the baseline gate. Next environment task: provision or select an approved x64 Visual Studio Developer environment and SDK, install/prepare the documented Python/CMake prerequisites through an approved route, then rerun this inventory against the actual checked-out upstream build guide. Confirm sufficient free disk space before fetching/building dependencies.
 - This file records only environment evidence. It does not establish repository source paths, credentials, or a successful baseline build.
+
+## Обновление 2026-11-08 после разрешённой установки
+
+Пользователь разрешил установку, затем уточнил: тяжёлую сборку по возможности выполнять в облаке.
+
+- Python 3.10.11 установлен рядом с 3.12, PATH не заменялся. Проверено `Python310/python.exe --version`; installer exit 0.
+- Visual Studio Community 2026: bootstrapper завершился с code 0 (23:03 MSK); vswhere isComplete=1. Проверены MSVC 14.44.35207, Windows SDK include 10.0.26100.0, CMake 4.3.1-msvc1. NativeDesktop workload также установил свой текущий MSVC 14.51.36231.
+- Подписи скачанных установщиков проверены: Python Software Foundation и Microsoft Corporation, Valid.
+- Свободно около 32.2 GiB против 42.3 GiB до установки (изменение включает кэш и временные файлы, это не точный размер установленного ПО).
+- Qt, библиотеки Telegram, configure и сборка локально не запускались. Перезагрузка не запускалась.
+- Проверка облачной среды GitHub Actions успешно выполнена: https://github.com/devinek1d/liquid_telegramm/actions/runs/42517586623 . VS2026/MSVC14.44, SDK26100, CMake и Python обнаружены. Это не проверка полноценной сборки или Python 3.10.
+- Следующий путь: зависимости и сборку готовить в облаке; локально проверять итоговый бинарник после изоляции профиля.
