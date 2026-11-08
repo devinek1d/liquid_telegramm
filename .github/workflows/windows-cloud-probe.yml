@@ -1,0 +1,74 @@
+name: Windows cloud probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/windows-cloud-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Inspect Windows build environment
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $results = [ordered]@{}
+          $missing = [System.Collections.Generic.List[string]]::new()
+
+          $os = Get-CimInstance Win32_OperatingSystem
+          $disk = Get-PSDrive -Name C
+          $freeGiB = [math]::Round($disk.Free / 1GB, 1)
+          $results['OS'] = "$($os.Caption) ($($os.Version))"
+          $results['C: free space'] = "$freeGiB GiB"
+
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs = $null
+          if (Test-Path $vswhere) {
+            $vsPath = & $vswhere -latest -version '[18.0,19.0)' -products '*' -requires Microsoft.VisualStudio.Component.VC.14.44.17.14.x86.x64 -property installationPath
+            if ($vsPath) { $vs = $vsPath.Trim() }
+          }
+          $results['VS 2026 with MSVC 14.44 component'] = if ($vs) { $vs } else { 'NOT FOUND' }
+          if (-not $vs) { $missing.Add('VS 2026 / MSVC 14.44') }
+
+          $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\Include\10.0.26100.0'
+          $results['Windows SDK 10.0.26100.0'] = if (Test-Path $sdkRoot) { 'FOUND' } else { 'NOT FOUND' }
+          if (-not (Test-Path $sdkRoot)) { $missing.Add('Windows SDK 10.0.26100.0') }
+
+          foreach ($tool in @('cmake', 'python')) {
+            $command = Get-Command $tool -ErrorAction SilentlyContinue
+            if ($command) {
+              $version = if ($tool -eq 'cmake') { (& cmake --version | Select-Object -First 1) } else { (& python --version 2>&1 | Select-Object -First 1) }
+              $results[$tool] = "$version [$($command.Source)]"
+            } else {
+              $results[$tool] = 'NOT FOUND'
+              $missing.Add($tool)
+            }
+          }
+
+          $summary = @('# Windows cloud environment probe', '', '| Check | Result |', '|---|---|')
+          foreach ($entry in $results.GetEnumerator()) {
+            $summary += "| $($entry.Key) | $($entry.Value -replace '\|', '\|') |"
+          }
+          if ($freeGiB -lt 20) {
+            $summary += ''
+            $summary += '> Disk space is below the 20 GiB probe threshold; this does not establish that the full dependency build will fit.'
+          }
+          if ($missing.Count -gt 0) {
+            $summary += ''
+            $summary += "**Probe failed:** missing $($missing -join ', ')."
+          } else {
+            $summary += ''
+            $summary += '**Probe passed:** base tools were found. Python 3.10 availability, dependency preparation and the full build remain unverified.'
+          }
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+
+          if ($missing.Count -gt 0) { exit 1 }
+
