@@ -1,0 +1,21 @@
+# Секреты и локальные данные
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Профили Telegram и локальные сессии
+**/tdata/
+**/tdata
+
+# Результаты сборки
+/build/
+/out/
+**/build/
+**/out/
+
+# Логи: могут содержать API credentials и локальные пути
+/logs/
+**/logs/
+*.log
+*.log.*
